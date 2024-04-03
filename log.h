@@ -72,13 +72,13 @@ private:
     void AsyncWrite();
 
 public:
-    void init(int level, const char *path = "./log", const char *suffix = ".log", int queuecapacity = 1024);
+    void init(int level, int queuecapacity = 1024, const char *path = "./log", const char *suffix = ".log");
     static log *Instance();
     static void FlushLogThread();
     void write(int level, const char *format, ...);
     void flush();
     int getLevel();
-    void setLevel();
+    void setLevel(int);
     bool IsOpen();
 };
 

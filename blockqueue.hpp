@@ -150,7 +150,7 @@ bool blockqueue<T>::pop(int timeout)
     while (deq_.empty())
     {
         if (consumer_.wait_for(lock, std::chrono::seconds(timeout)) == std::cv_status::timeout)
-            retrurn false;
+            return false;
         if (isClose_)
             return false;
     }
