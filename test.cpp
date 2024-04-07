@@ -3,14 +3,13 @@
 int main()
 {
     log *lg = log::Instance();
-    lg->init(0,0);
-    LOG_DEBUG("11111111111111");
-    LOG_INFO("222222222222");
-    LOG_WARN("333333333333333");
-    LOG_ERROR("4444444444444");
-    LOG_DEBUG("6666666666666");
+    lg->init(0,599);
+    LOG_DEBUG("1111");
+    LOG_DEBUG("11");
+    LOG_INFO("2");
+    LOG_WARN("3");
+    LOG_ERROR("4");
 
-    std::cout<<"pp";
 
     return 0;
 }

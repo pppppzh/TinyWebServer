@@ -5,6 +5,8 @@
 #include <condition_variable>
 #include <mutex>
 #include <sys/time.h>
+#include <assert.h>
+#include <iostream>
 
 template <typename T>
 class blockqueue
@@ -25,8 +27,8 @@ public:
     bool full();
     void push_back(const T &);
     void push_front(const T &);
-    void pop();
-    bool pop(int);
+    void pop(T&);
+    bool pop(int,T&);
     void clear();
     T front();
     T back();
@@ -132,19 +134,20 @@ void blockqueue<T>::push_front(const T &item)
 }
 
 template <typename T>
-void blockqueue<T>::pop()
+void blockqueue<T>::pop(T& item)
 {
     std::unique_lock<std::mutex> lock(mtx_);
     while (deq_.empty())
     {
         consumer_.wait(lock);
     }
+    item = deq_.front();
     deq_.pop_front();
     producer_.notify_one();
 }
 
 template <typename T>
-bool blockqueue<T>::pop(int timeout)
+bool blockqueue<T>::pop(int timeout,T& item)
 {
     std::unique_lock<std::mutex> lock(mtx_);
     while (deq_.empty())
@@ -154,6 +157,7 @@ bool blockqueue<T>::pop(int timeout)
         if (isClose_)
             return false;
     }
+    item = deq_.front();
     deq_.pop_front();
     producer_.notify_one();
     return true;

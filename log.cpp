@@ -12,12 +12,17 @@ log::log()
 
 log::~log()
 {
-    while (!deque_->empty())
+    if (deque_ != nullptr)
     {
-        deque_->flush();
+        while (!deque_->empty())
+        {
+            deque_->flush();
+        }
+        deque_->close();
     }
-    deque_->close();
-    writeThread_->join();
+    if(writeThread_)
+        writeThread_->join();
+
     if (fp_)
     {
         std::lock_guard<std::mutex> lock(mtx_);
@@ -26,9 +31,9 @@ log::~log()
     }
 }
 
-bool log::IsOpen() 
-{ 
-    return isOpen_; 
+bool log::IsOpen()
+{
+    return isOpen_;
 }
 
 void log::flush()
@@ -53,10 +58,11 @@ void log::AsyncWrite()
 {
     while (1)
     {
-        std::string str = deque_->front();
-        deque_->pop();
+        std::string str;
+        deque_->pop(str);
         std::lock_guard<std::mutex> lock(mtx_);
         fputs(str.c_str(), fp_);
+        // flush();
     }
 }
 
@@ -100,7 +106,7 @@ void log::init(int level, int capacity, const char *path, const char *suffix)
         if (fp_ == nullptr)
         {
             int t = mkdir(path_, 0777);
-            assert(t==0);
+            assert(t == 0);
             fp_ = fopen(fileName, "a");
         }
         assert(fp_ != nullptr);
@@ -118,13 +124,13 @@ void log::write(int level, const char *format, ...)
         snprintf(tail, 35, "%04d_%02d_%02d", systime->tm_year + 1900, systime->tm_mon + 1, systime->tm_mday);
         if (day_ != systime->tm_mday)
         {
-            snprintf(filename, NAME_LEN-1, "%s/%s%s", path_, tail, suffix_);
+            snprintf(filename, NAME_LEN - 1, "%s/%s%s", path_, tail, suffix_);
             day_ = systime->tm_mday;
             lines_ = 0;
         }
         else
         {
-            snprintf(filename, NAME_LEN-1, "%s/%s-%d%s", path_, tail, (lines_ / MAX_LINES), suffix_);
+            snprintf(filename, NAME_LEN - 1, "%s/%s-%d%s", path_, tail, (lines_ / MAX_LINES), suffix_);
         }
 
         std::unique_lock<std::mutex> lock(mtx_);
@@ -136,9 +142,11 @@ void log::write(int level, const char *format, ...)
 
     std::unique_lock<std::mutex> lock(mtx_);
     lines_++;
-    int n = snprintf(buff_.BeginWrite(), 128, "%d-%02d-%02d %02d:%02d:%02d ",
+    struct timeval now = {0, 0};
+    gettimeofday(&now, nullptr);
+    int n = snprintf(buff_.BeginWrite(), 128, "%d-%02d-%02d %02d:%02d:%02d.%06ld ",
                      systime->tm_year + 1900, systime->tm_mon + 1, systime->tm_mday,
-                     systime->tm_hour, systime->tm_min, systime->tm_sec);
+                     systime->tm_hour, systime->tm_min, systime->tm_sec, now.tv_usec);
     buff_.HasWritten(n);
     LogLevel(level);
     va_list vaList;
@@ -147,16 +155,16 @@ void log::write(int level, const char *format, ...)
     va_end(vaList);
     buff_.HasWritten(m);
     buff_.Append("\n\0");
+    std::string str = buff_.RetrieveAllToStr();
 
     if (isAsync_ && deque_ && !deque_->full())
     {
-        deque_->push_back(buff_.RetrieveAllToStr());
+        deque_->push_back(str);
     }
     else
     {
-        fputs(buff_.Peek(), fp_);
+        fputs(str.c_str(), fp_);
     }
-    buff_.RetrieveAll();
 }
 
 void log::LogLevel(int level)
