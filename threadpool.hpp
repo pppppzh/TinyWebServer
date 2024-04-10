@@ -16,24 +16,31 @@ private:
         std::mutex mtx_;
         std::condition_variable cond_;
         bool isClosed;
-        std::queue<std::function<void()>> tasks; 
+        std::queue<std::function<void()>> tasks;
     };
     std::shared_ptr<pool> pool_;
-    
+
 public:
     explicit threadpool(int);
     ~threadpool();
-    template<typename T>
-    void AddTask(T&&);
+    
+    template <typename T>
+    void AddTask(T &&task)
+    {
+        std::unique_lock<std::mutex> lock(pool_->mtx_);
+        pool_->tasks.emplace(std::forward<T>(task));
+        pool_->cond_.notify_one();
+    }
 };
 
-explicit threadpool::threadpool(int count=8)
-:pool_(std::make_shared<pool>())
+threadpool::threadpool(int count = 8)
+    : pool_(std::make_shared<pool>())
 {
-    assert(count>0);
-    for(int i=0;i<count;++i)
+    assert(count > 0);
+    for (int i = 0; i < count; ++i)
     {
-        std::thread([this](){
+        std::thread([this]()
+                    {
             std::unique_lock<std::mutex> lock(pool_->mtx_);
             while(!pool_->isClosed)
             {
@@ -49,28 +56,19 @@ explicit threadpool::threadpool(int count=8)
                 {
                     pool_->cond_.wait(lock);
                 }
-            }
-        }).detach();
+            } })
+            .detach();
     }
 }
 
 threadpool::~threadpool()
 {
-    if(pool_)
+    if (pool_)
     {
         std::unique_lock<std::mutex> lock(pool_->mtx_);
         pool_->isClosed = true;
     }
     pool_->cond_.notify_all();
 }
-
-template<typename T>
-void AddTask(T&& task)
-{
-    std::unique_lock<std::mutex> lock(pool_->mtx_);
-    pool_->tasks.emplace(std::forward<T>(task));
-    pool_->cond_.notify_one();
-}
-
 
 #endif
