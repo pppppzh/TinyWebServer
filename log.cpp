@@ -140,10 +140,10 @@ void log::write(int level, const char *format, ...)
         assert(fp_ != nullptr);
     }
 
+    struct timeval now = {0, 0}; 
     std::unique_lock<std::mutex> lock(mtx_);
-    lines_++;
-    struct timeval now = {0, 0};
     gettimeofday(&now, nullptr);
+    lines_++;
     int n = snprintf(buff_.BeginWrite(), 128, "%d-%02d-%02d %02d:%02d:%02d.%06ld ",
                      systime->tm_year + 1900, systime->tm_mon + 1, systime->tm_mday,
                      systime->tm_hour, systime->tm_min, systime->tm_sec, now.tv_usec);
