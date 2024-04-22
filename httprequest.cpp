@@ -1,16 +1,13 @@
 #include "httprequest.h"
 
-const std::unordered_set<std::string> HttpRequest::DEFAULT_HTML
-{
-    "/index","/register","/login","/welcome","/video","/picture"
-};
+const std::unordered_set<std::string> HttpRequest::DEFAULT_HTML{
+    "/index", "/register", "/login", "/welcome", "/video", "/picture"};
 
-const std::unordered_map<std::string,int> HttpRequest::DEFAULT_HTML_TAG
-{
-    {"/register.html",0},{"/login.html",1}
-};
+const std::unordered_map<std::string, int> HttpRequest::DEFAULT_HTML_TAG{
+    {"/register.html", 0}, {"/login.html", 1}};
 
-void HttpRequest::Init() {
+void HttpRequest::Init()
+{
     method_ = path_ = version_ = body_ = "";
     state_ = REQUEST_LINE;
     header_.clear();
@@ -19,33 +16,35 @@ void HttpRequest::Init() {
 
 bool HttpRequest::IsKeepAlive() const
 {
-    if(version_ == "1.1" && header_.count("Connection"))
+    if (version_ == "1.1" && header_.count("Connection"))
     {
         return header_.find("Connection")->second == "keep-alive";
     }
 }
 
-bool HttpRequest::parse(buffer& buff)
+bool HttpRequest::parse(buffer &buff)
 {
     const std::string CRLF = "\r\n";
-    if(buff.ReadableBytes()<=0)
+    if (buff.ReadableBytes() <= 0)
     {
         LOG_INFO("HttpRequest::parse() have no readable data");
         return false;
     }
-    while(buff.ReadableBytes() && state_ != FINISH)
+    while (buff.ReadableBytes() && state_ != FINISH)
     {
-        const char* lineEnd = std::search(buff.Peek(),buff.BeginWriteConst(),CRLF.c_str(),CRLF.c_str()+2);
-        std::string line(buff.Peek(),lineEnd);
+        const char *lineEnd = std::search(buff.Peek(), buff.BeginWriteConst(), CRLF.c_str(), CRLF.c_str() + 2);
+        std::string line(buff.Peek(), lineEnd);
         switch (state_)
         {
         case REQUEST_LINE:
-            if(!ParseRequestLine_(line)) return false;
+            if (!ParseRequestLine_(line))
+                return false;
             ParsePath_();
             break;
         case HEADERS:
             ParseHeader_(line);
-            if(buff.ReadableBytes()<=2) state_ = FINISH;
+            if (buff.ReadableBytes() <= 2)
+                state_ = FINISH;
             break;
         case BODY:
             ParseBody_(line);
@@ -53,8 +52,9 @@ bool HttpRequest::parse(buffer& buff)
         default:
             break;
         }
-        if(lineEnd == buff.BeginWrite()) break;
-        buff.RetrieveUntil(lineEnd+2);
+        if (lineEnd == buff.BeginWrite())
+            break;
+        buff.RetrieveUntil(lineEnd + 2);
     }
     // LOG_INFO("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
     return true;
@@ -62,12 +62,13 @@ bool HttpRequest::parse(buffer& buff)
 
 void HttpRequest::ParsePath_()
 {
-    if(path_=="/") path_="/index.html";
+    if (path_ == "/")
+        path_ = "/index.html";
     else
     {
-        for(auto &item:DEFAULT_HTML)
+        for (auto &item : DEFAULT_HTML)
         {
-            if(item==path_)
+            if (item == path_)
             {
                 path_ += ".html";
                 break;
@@ -76,11 +77,11 @@ void HttpRequest::ParsePath_()
     }
 }
 
-bool HttpRequest::ParseRequestLine_(const std::string& line)
+bool HttpRequest::ParseRequestLine_(const std::string &line)
 {
     std::regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
     std::smatch subMatch;
-    if(std::regex_match(line,subMatch,patten))
+    if (std::regex_match(line, subMatch, patten))
     {
         method_ = subMatch[1];
         path_ = subMatch[2];
@@ -92,13 +93,13 @@ bool HttpRequest::ParseRequestLine_(const std::string& line)
     return false;
 }
 
-void HttpRequest::ParseHeader_(const std::string& line)
+void HttpRequest::ParseHeader_(const std::string &line)
 {
     std::regex patten("^([^:]*):?(.*)$");
     std::smatch subMatch;
-    if(std::regex_match(line,subMatch,patten))
+    if (std::regex_match(line, subMatch, patten))
     {
-        header_[subMatch[1]]=subMatch[2];
+        header_[subMatch[1]] = subMatch[2];
     }
     else
     {
@@ -106,7 +107,7 @@ void HttpRequest::ParseHeader_(const std::string& line)
     }
 }
 
-void HttpRequest::ParseBody_(const std::string& line)
+void HttpRequest::ParseBody_(const std::string &line)
 {
     body_ = line;
     ParsePost_();
@@ -114,36 +115,44 @@ void HttpRequest::ParseBody_(const std::string& line)
     LOG_DEBUG("Body:%s, len:%d", line.c_str(), line.size());
 }
 
-int HttpRequest::ConverHex(char ch) {
-    if(ch >= 'A' && ch <= 'F') return ch -'A' + 10;
-    if(ch >= 'a' && ch <= 'f') return ch -'a' + 10;
+int HttpRequest::ConverHex(char ch)
+{
+    if (ch >= 'A' && ch <= 'F')
+        return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f')
+        return ch - 'a' + 10;
     return ch;
 }
 
-
 void HttpRequest::ParsePost_()
 {
-    if(method_=="POST" && header_["Content-Type"]=="application/x-www-form-urlencoded");
+    if (method_ == "POST" && header_["Content-Type"] == "application/x-www-form-urlencoded")
+        ;
     ParseFromUrlencoded_();
-    if(DEFAULT_HTML_TAG.count(path_))
+    if (DEFAULT_HTML_TAG.count(path_))
     {
         int tag = DEFAULT_HTML_TAG.find(path_)->second;
-        LOG_DEBUG("Tag:%d",tag);
-        if((tag==0 || tag==1) && UserVerify(post_["username"],post_["password"],tag==1)) path_ = "/welcome.html";
-        else path_ = "/error.html";
+        LOG_DEBUG("Tag:%d", tag);
+        if ((tag == 0 || tag == 1) && UserVerify(post_["username"], post_["password"], tag == 1))
+            path_ = "/welcome.html";
+        else
+            path_ = "/error.html";
     }
 }
 
 void HttpRequest::ParseFromUrlencoded_()
 {
-    if(!body_.size()) return;
-    std::string key,value;
-    int n = body_.size(),num=0;
+    if (!body_.size())
+        return;
+    std::string key, value;
+    int n = body_.size(), num = 0;
     int i = 0, j = 0;
 
-    for(; i < n; i++) {
+    for (; i < n; i++)
+    {
         char ch = body_[i];
-        switch (ch) {
+        switch (ch)
+        {
         // key
         case '=':
             key = body_.substr(j, i - j);
@@ -171,7 +180,8 @@ void HttpRequest::ParseFromUrlencoded_()
         }
     }
     assert(j <= i);
-    if(post_.count(key) == 0 && j < i) {
+    if (post_.count(key) == 0 && j < i)
+    {
         value = body_.substr(j, i - j);
         post_[key] = value;
     }
@@ -179,33 +189,36 @@ void HttpRequest::ParseFromUrlencoded_()
 
 bool HttpRequest::UserVerify(const std::string &name, const std::string &pwd, bool isLogin)
 {
-    if(name ==""||pwd=="") return false;
+    if (name == "" || pwd == "")
+        return false;
     LOG_INFO("Verify name:%s pwd:%s", name.c_str(), pwd.c_str());
-    MYSQL* sql;
-    sqlconRAII(&sql,sqlconpool::Instance());
+    MYSQL *sql;
+    sqlconRAII(&sql, sqlconpool::Instance());
     assert(sql);
     bool flag = false;
     unsigned int j = 0;
     char order[256] = {0};
     MYSQL_FIELD *field = nullptr;
-    MYSQL_RES* res = nullptr;
-    if(!isLogin) flag=true;
-    snprintf(order,256,"SELECT username, password FROM user WHERE username='%s' LIMIT 1",name.c_str());
-    if(mysql_query(sql,order))
+    MYSQL_RES *res = nullptr;
+    if (!isLogin)
+        flag = true;
+    snprintf(order, 256, "SELECT username, password FROM user WHERE username='%s' LIMIT 1", name.c_str());
+    if (mysql_query(sql, order))
     {
         mysql_free_result(res);
         return false;
     }
-    res=mysql_store_result(sql);
-    j=mysql_num_fields(res);
+    res = mysql_store_result(sql);
+    j = mysql_num_fields(res);
     field = mysql_fetch_fields(res);
-    while(MYSQL_ROW row = mysql_fetch_row(res))
+    while (MYSQL_ROW row = mysql_fetch_row(res))
     {
         std::string password = row[1];
-        if(isLogin)
+        if (isLogin)
         {
-            flag= pwd==password;
-            if(flag) LOG_INFO("pwd error!");
+            flag = pwd == password;
+            if (flag)
+                LOG_INFO("pwd error!");
         }
         else
         {
@@ -214,45 +227,53 @@ bool HttpRequest::UserVerify(const std::string &name, const std::string &pwd, bo
         }
     }
     mysql_free_result(res);
-    if(!isLogin && flag == true) {
+    if (!isLogin && flag == true)
+    {
         LOG_DEBUG("regirster!");
         bzero(order, 256);
-        snprintf(order, 256,"INSERT INTO user(username, password) VALUES('%s','%s')", name.c_str(), pwd.c_str());
-        LOG_DEBUG( "%s", order);
-        if(mysql_query(sql, order)) { 
-            LOG_DEBUG( "Insert error!");
-            flag = false; 
+        snprintf(order, 256, "INSERT INTO user(username, password) VALUES('%s','%s')", name.c_str(), pwd.c_str());
+        LOG_DEBUG("%s", order);
+        if (mysql_query(sql, order))
+        {
+            LOG_DEBUG("Insert error!");
+            flag = false;
         }
         flag = true;
     }
-    
-    LOG_DEBUG( "UserVerify success!!");
+
+    LOG_DEBUG("UserVerify success!!");
     return flag;
-
 }
 
-std::string HttpRequest::path() const{
+std::string HttpRequest::path() const
+{
     return path_;
 }
 
-std::string& HttpRequest::path(){
+std::string &HttpRequest::path()
+{
     return path_;
 }
-std::string HttpRequest::method() const {
+std::string HttpRequest::method() const
+{
     return method_;
 }
 
-std::string HttpRequest::version() const {
+std::string HttpRequest::version() const
+{
     return version_;
 }
 
-std::string HttpRequest::GetPost(const std::string& key) const {
+std::string HttpRequest::GetPost(const std::string &key) const
+{
     return GetPost(key.c_str());
 }
 
-std::string HttpRequest::GetPost(const char* key) const {
+std::string HttpRequest::GetPost(const char *key) const
+{
     assert(key != nullptr);
-    if(post_.count(key)) {
+    if (post_.count(key))
+    {
         return post_.find(key)->second;
     }
     return "";
