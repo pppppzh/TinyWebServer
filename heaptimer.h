@@ -36,7 +36,7 @@ public:
 private:
     void del_(size_t i);
     void siftup_(size_t i);
-    bool siftdown_(size_t i, size_t n);
+    void siftdown_(size_t i);
     void SwapNode_(size_t i, size_t j);
 
     std::vector<TimerNode> heap_;
