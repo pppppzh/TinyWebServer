@@ -56,7 +56,7 @@ void log::FlushLogThread()
 
 void log::AsyncWrite()
 {
-    while (1)
+    while (true)
     {
         std::string str;
         deque_->pop(str);

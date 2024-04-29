@@ -5,29 +5,34 @@
 #include <unordered_map>
 #include <time.h>
 #include <algorithm>
-#include <arpa/inet.h> 
-#include <functional> 
-#include <assert.h> 
+#include <arpa/inet.h>
+#include <functional>
+#include <assert.h>
 #include <chrono>
 #include "log.h"
 
-struct TimerNode {
+struct TimerNode
+{
     int id;
     std::chrono::high_resolution_clock::time_point expires;
-    std::function<void()> TimeoutCallback; 
-    bool operator<(const TimerNode& t) {   
+    std::function<void()> TimeoutCallback;
+    bool operator<(const TimerNode &t)
+    {
         return expires < t.expires;
     }
+    TimerNode(int id_, std::chrono::high_resolution_clock::time_point expires_, std::function<void()> TimeoutCallback_)
+        : id(id_), expires(expires_), TimeoutCallback(TimeoutCallback_) {}
 };
 
-class HeapTimer {
+class HeapTimer
+{
 public:
     HeapTimer() { heap_.reserve(64); }
     ~HeapTimer() { clear(); }
-    
+
     void adjust(int id, int newExpires);
-    void add(int id, int timeOut, const std::function<void()>& cb);
-    void doWork(int id);
+    void add(int id, int timeOut, const std::function<void()> &cb);
+    void work(int id);
     void clear();
     void tick();
     void pop();
@@ -41,7 +46,7 @@ private:
 
     std::vector<TimerNode> heap_;
     // key:id value:vector的下标
-    std::unordered_map<int, size_t> ref_;   // id对应的在heap_中的下标，方便用heap_的时候查找
+    std::unordered_map<int, size_t> ref_; // id对应的在heap_中的下标，方便用heap_的时候查找
 };
 
-#endif 
+#endif
